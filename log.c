@@ -61,6 +61,5 @@ void log_core(int level, int line, const char *func, const char *fmt, ...) {
 
     if (write(log_fd, log_content, log_len) <= 0) {
         printf("write log file error:%d\n", log_fd);
-        return;
     }
 }

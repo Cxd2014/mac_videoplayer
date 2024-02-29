@@ -1,6 +1,13 @@
 #ifndef PLAYER_H_INCLUDED_
 #define PLAYER_H_INCLUDED_
 
-int init_ffmpeg(const char *fileName);
+#include "context.h"
+
+int init_ffmpeg(Context *ctx);
+
+int read_thread(void *arg);
+
+int decode_video(void *arg);
+int decode_audio(void *arg);
 
 #endif

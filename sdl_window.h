@@ -1,7 +1,9 @@
 #ifndef SDL_H_INCLUDED_
 #define SDL_H_INCLUDED_
 
-int sdl_init();
-int sdl_event_loop();
+#include "context.h"
+
+int create_window(Context *ctx);
+int sdl_event_loop(Context *ctx);
 
 #endif

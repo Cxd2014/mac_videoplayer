@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
-project(video_player)
+project(vplayer)
 
 set(CMAKE_C_STANDARD 11)
 
 find_package(SDL2 REQUIRED)
+
+set(CMAKE_CXX_FLAGS "-Wall -g")
 
 set(FFMPEG_INCLUDE_DIR "/opt/homebrew/opt/ffmpeg/include")
 set(FFMPEG_LIBRARY_DIR "/opt/homebrew/opt/ffmpeg/lib")
@@ -17,7 +19,17 @@ find_library(AVFILTER_LIBRARY avfilter HINTS ${FFMPEG_LIBRARY_DIR})
 find_library(AVDEVICE_LIBRARY avdevice HINTS ${FFMPEG_LIBRARY_DIR})
 find_library(SWRESAMPLE_LIBRARY swresample HINTS ${FFMPEG_LIBRARY_DIR})
 
-add_executable(video_player 
+add_custom_command(
+    OUTPUT rm_file
+    COMMAND rm -rf debug.log vplayer
+)
+
+add_custom_target(
+    rm_target
+    DEPENDS rm_file
+)
+
+add_executable(vplayer 
     main.c
     sdl_window.c
     video.c
@@ -25,7 +37,9 @@ add_executable(video_player
     log.c
 )
 
-target_link_libraries(video_player
+add_dependencies(vplayer rm_target)
+
+target_link_libraries(vplayer
     SDL2::SDL2
     ${AVCODEC_LIBRARY} 
     ${AVFORMAT_LIBRARY} 
@@ -36,4 +50,4 @@ target_link_libraries(video_player
     ${SWRESAMPLE_LIBRARY}
 )
 
-target_include_directories(video_player PRIVATE ${FFMPEG_INCLUDE_DIR})
+target_include_directories(vplayer PRIVATE ${FFMPEG_INCLUDE_DIR})
