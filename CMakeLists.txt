@@ -35,6 +35,7 @@ add_executable(vplayer
     video.c
     rqueue.c
     log.c
+    util.c
 )
 
 add_dependencies(vplayer rm_target)

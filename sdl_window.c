@@ -1,5 +1,6 @@
 #include "sdl_window.h"
 #include "log.h"
+#include "util.h"
 
 int create_window(Context *ctx) {
 
@@ -8,17 +9,34 @@ int create_window(Context *ctx) {
         log_error("could not initialize sdl2: %s", SDL_GetError());
         return -1;
     }
+    
+    // 遍历所有显示器并获取它们的分辨率
+    int num_displays = SDL_GetNumVideoDisplays();
+    for (int i = 0; i < num_displays; ++i) {
+        SDL_DisplayMode display_mode;
+        SDL_GetCurrentDisplayMode(i, &display_mode);
+
+        float ddpi, hdpi, vdpi;
+        SDL_GetDisplayDPI(i, &ddpi, &hdpi, &vdpi);
+
+        log_info("Display %d:", i);
+        log_info("  Resolution: %dx%d Refresh rate: %d Hz", display_mode.w, display_mode.h, display_mode.refresh_rate);
+        log_info("  Diagonal DPI: %.2f Horizontal DPI: %.2f Vertical DPI: %.2f", ddpi,hdpi,vdpi);
+    }
 
     // 创建窗口
     ctx->sdl.window = SDL_CreateWindow(
             "vplayer",
-            0, 0,
+            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
             ctx->sdl.width, ctx->sdl.higth,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE| SDL_WINDOW_ALLOW_HIGHDPI);
     if (ctx->sdl.window == NULL) {
         log_error("could not create window: %s", SDL_GetError());
         return -2;
     }
+
+    SDL_GL_GetDrawableSize(ctx->sdl.window, &(ctx->sdl.width), &(ctx->sdl.higth));
+    log_info("width:%d hight:%d", ctx->sdl.width, ctx->sdl.higth);
 
     // 创建渲染器
     ctx->sdl.render = SDL_CreateRenderer(ctx->sdl.window, -1, 0);
@@ -36,6 +54,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
         log_error("frame is null error");
         return -1;
     }
+    clock_t start = clock();
 
     SDL_Rect rect;
     rect.x = 0;
@@ -52,8 +71,6 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
             return -2;
         }
     }
-
-    log_debug("Frame %c pts %d dts %d", av_get_picture_type_char(frame->pict_type), frame->pts, frame->pkt_dts);
 
     ctx->ffmpeg.sub_convert_ctx = sws_getCachedContext(ctx->ffmpeg.sub_convert_ctx,
             frame->width, frame->height, frame->format, rect.w, rect.h,
@@ -85,10 +102,9 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
 
     SDL_RenderClear(ctx->sdl.render); // 先清空渲染器
     SDL_RenderCopy(ctx->sdl.render, ctx->sdl.texture, NULL, &rect); // 将视频纹理复制到渲染器
-
-
     SDL_RenderPresent(ctx->sdl.render); // 渲染画面
 
+    log_debug("Frame %c pts %d dts %d duration %d", av_get_picture_type_char(frame->pict_type), frame->pts, frame->pkt_dts, duration(start));
     av_frame_unref(frame);
     av_frame_free(&frame);
     av_freep(&pixels[0]);
@@ -136,7 +152,6 @@ int sdl_event_loop(Context *ctx) {
         } else {
             count++;
             render_video_frame(ctx, frame);
-            //SDL_Delay(10);
         }
     }
 

@@ -173,6 +173,7 @@ int decode_video(void *arg) {
             do { // 写入环形队列
                 ret = rqueue_write(ctx->vframe_queue, frame);
                 if (ret != 0) {
+                    SDL_Delay(10);
                     log_debug("rqueue_write error:%d",ret);
                 }
             } while (ret != 0 && ctx->quit == false);

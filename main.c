@@ -5,7 +5,7 @@
 #include "video.h"
 #include "context.h"
 
-#define QUEUE_SIZE (120)
+#define QUEUE_SIZE (32)
 
 static int init_context(Context *ctx) {
     ctx->quit = false;
