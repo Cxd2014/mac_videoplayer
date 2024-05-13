@@ -17,6 +17,6 @@
 
 void log_core(int level, int line, const char *func, const char *fmt, ...);
 
-int log_init(const char *file, int log_level);
+int log_init(const char *file, int level);
 void log_uninit();
 #endif

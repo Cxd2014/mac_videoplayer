@@ -7,7 +7,7 @@
 
 #include "log.h"
 
-static const char *log_level[] = {
+static const char *log_levels[] = {
     "",
     "error",
     "info",
@@ -21,12 +21,15 @@ int64_t get_now_millisecond() {
 }
 
 static int log_fd;
-int log_init(const char *file, int log_level) {
+static int log_level;
+int log_init(const char *file, int level) {
     log_fd = open(file, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (log_fd <= 0) {
         printf("opening log file error:%d\n", log_fd);
         return -1;
     }
+
+    log_level = level;
     return 0;
 }
 
@@ -36,6 +39,10 @@ void log_uninit() {
 }
 
 void log_core(int level, int line, const char *func, const char *fmt, ...) {
+    if (level > log_level) {
+        return;
+    }
+
     char log_time[64] = {0};
     int64_t now_millisecond = get_now_millisecond();
     int millisecond = now_millisecond % 1000;
@@ -43,7 +50,7 @@ void log_core(int level, int line, const char *func, const char *fmt, ...) {
     strftime(log_time, sizeof(log_time), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
     char log_prefix[128] = {0};
-    snprintf(log_prefix, sizeof(log_prefix), "%s.%03d [%s]%s:%d ", log_time, millisecond, log_level[level], func, line);
+    snprintf(log_prefix, sizeof(log_prefix), "%s.%03d [%s]%s:%d ", log_time, millisecond, log_levels[level], func, line);
 
     char str[1024] = {0};
     va_list args;

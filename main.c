@@ -54,7 +54,7 @@ static int init_context(Context *ctx) {
 }
 
 int main() {
-    log_init("debug.log", LOG_DEBUG);
+    log_init("debug.log", LOG_INFO);
 
     Context *ctx = calloc(1, sizeof(Context));
     if (!ctx) {

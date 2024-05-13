@@ -2,6 +2,11 @@
 #include "log.h"
 #include "util.h"
 
+void get_window_size(Context *ctx) {
+    SDL_GL_GetDrawableSize(ctx->sdl.window, &(ctx->sdl.width), &(ctx->sdl.higth));
+    log_info("width:%d hight:%d", ctx->sdl.width, ctx->sdl.higth);
+}
+
 int create_window(Context *ctx) {
 
     log_debug("create_window...");
@@ -34,9 +39,7 @@ int create_window(Context *ctx) {
         log_error("could not create window: %s", SDL_GetError());
         return -2;
     }
-
-    SDL_GL_GetDrawableSize(ctx->sdl.window, &(ctx->sdl.width), &(ctx->sdl.higth));
-    log_info("width:%d hight:%d", ctx->sdl.width, ctx->sdl.higth);
+    get_window_size(ctx);
 
     // 创建渲染器
     ctx->sdl.render = SDL_CreateRenderer(ctx->sdl.window, -1, 0);
@@ -64,7 +67,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
 
     if (ctx->sdl.texture == NULL) {
         // 窗口大小调整之后需要重新创建纹理
-        ctx->sdl.texture = SDL_CreateTexture(ctx->sdl.render, SDL_PIXELFORMAT_IYUV,
+        ctx->sdl.texture = SDL_CreateTexture(ctx->sdl.render, SDL_PIXELFORMAT_NV12,
                         SDL_TEXTUREACCESS_STREAMING, rect.w, rect.h);
         if (ctx->sdl.texture == NULL) {
             log_error("SDL_CreateTexture error: %s", SDL_GetError());
@@ -72,42 +75,24 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
         }
     }
 
-    ctx->ffmpeg.sub_convert_ctx = sws_getCachedContext(ctx->ffmpeg.sub_convert_ctx,
-            frame->width, frame->height, frame->format, rect.w, rect.h,
-            frame->format, SWS_BICUBIC, NULL, NULL, NULL);
-    if (ctx->ffmpeg.sub_convert_ctx == NULL) {
-        log_error("sws_getCachedContext error");
-        return -3;
-    }
+    int size = av_image_get_buffer_size(frame->format, frame->width,
+                                    frame->height, 1);
+    uint8_t *buffer = av_malloc(size);
+    av_image_copy_to_buffer(buffer, size,
+                                (const uint8_t * const *)frame->data,
+                                (const int *)frame->linesize, frame->format,
+                                frame->width, frame->height, 1);
+    SDL_UpdateTexture(ctx->sdl.texture, &rect, buffer, frame->linesize[0]);
 
-    // 根据窗口大小,调整视频帧的大小
-    // 分配新视频帧的内存空间
-    uint8_t *pixels[4] = {NULL};
-    int linesize[4];
-    int ret = av_image_alloc(pixels, linesize, rect.w, rect.h, frame->format, 1);
-    if (ret < 0) {
-        log_error("av_image_alloc error %d %d", ret, frame->format);
-        return -4;
-    }
-    
-    // 调整帧大小
-    sws_scale(ctx->ffmpeg.sub_convert_ctx, (const uint8_t * const *)frame->data, frame->linesize,
-                            0, frame->height, pixels, linesize);
-
-    //上传YUV数据到Texture
-    SDL_UpdateYUVTexture(ctx->sdl.texture, &rect,
-                         pixels[0], linesize[0],
-                         pixels[1], linesize[1],
-                         pixels[2], linesize[2]);
 
     SDL_RenderClear(ctx->sdl.render); // 先清空渲染器
     SDL_RenderCopy(ctx->sdl.render, ctx->sdl.texture, NULL, &rect); // 将视频纹理复制到渲染器
     SDL_RenderPresent(ctx->sdl.render); // 渲染画面
 
-    log_debug("Frame %c pts %d dts %d duration %d", av_get_picture_type_char(frame->pict_type), frame->pts, frame->pkt_dts, duration(start));
+    log_info("format %d duration %d %d*%d", frame->format, calc_duration(start), frame->width, frame->height);
     av_frame_unref(frame);
     av_frame_free(&frame);
-    av_freep(&pixels[0]);
+    av_freep(&buffer);
     return 0;
 }
 
@@ -136,6 +121,7 @@ int sdl_event_loop(Context *ctx) {
             case SDL_WINDOWEVENT:
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_SIZE_CHANGED:
+                    get_window_size(ctx);
                     break;
                 }
                 break;
@@ -148,10 +134,12 @@ int sdl_event_loop(Context *ctx) {
 
         AVFrame *frame = rqueue_read(ctx->vframe_queue);
         if (frame == NULL) {
-            SDL_Delay(10);
+            SDL_Delay(SELLP_MS);
+            log_debug("rqueue_read vframe_queue null");
         } else {
             count++;
             render_video_frame(ctx, frame);
+            SDL_Delay(SELLP_MS);
         }
     }
 

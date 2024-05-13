@@ -18,9 +18,11 @@
 
 #include "rqueue.h"
 
+#define SELLP_MS (10)
+
 typedef struct SDLInfo {
-    uint32_t width;
-    uint32_t higth;
+    int width;
+    int higth;
 
     SDL_Window *window;
     SDL_Renderer *render;
