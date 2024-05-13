@@ -165,7 +165,7 @@ int decode_video(void *arg) {
         goto fail;
     }
 
-    //将视频流的的编解码信息拷贝到codec中
+    //将视频流的编解码信息拷贝到codec中
     ret = avcodec_parameters_to_context(codec, ctx->ffmpeg.format->streams[ctx->video_index]->codecpar);
     if (ret != 0) {
         log_error("avcodec_parameters_to_context error:%d", ret);
