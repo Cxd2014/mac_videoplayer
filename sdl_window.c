@@ -128,7 +128,14 @@ int sdl_event_loop(Context *ctx) {
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym) {
                 case SDLK_SPACE:
-                    
+                    ctx->pause = !(ctx->pause); // 暂停，开启播放
+
+                    if (ctx->pause) {
+                        SDL_PauseAudioDevice(ctx->sdl.audio_device, 1);
+                    } else {
+                        SDL_PauseAudioDevice(ctx->sdl.audio_device, 0);
+                    }
+                    log_info("space key kickdown pause:%d", ctx->pause);
                     break;
                 case SDLK_RIGHT:
                     
@@ -161,14 +168,18 @@ int sdl_event_loop(Context *ctx) {
             }
         }
 
-        AVFrame *frame = rqueue_read(ctx->vframe_queue);
-        if (frame == NULL) {
-            SDL_Delay(SELLP_MS);
-            log_debug("rqueue_read vframe_queue null");
+        if (ctx->pause) {
+            SDL_Delay(10 * SELLP_MS);
         } else {
-            count++;
-            render_video_frame(ctx, frame);
-            //SDL_Delay(SELLP_MS);
+            AVFrame *frame = rqueue_read(ctx->vframe_queue);
+            if (frame == NULL) {
+                SDL_Delay(SELLP_MS);
+                log_debug("rqueue_read vframe_queue null");
+            } else {
+                count++;
+                render_video_frame(ctx, frame);
+                SDL_Delay(SELLP_MS);
+            }
         }
     }
 

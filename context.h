@@ -49,6 +49,7 @@ typedef struct Context {
     SDL_Thread *audio_tid;
 
     bool quit;
+    bool pause;
 
     int video_index;
     int audio_index;

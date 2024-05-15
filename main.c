@@ -10,6 +10,7 @@
 
 static int init_context(Context *ctx) {
     ctx->quit = false;
+    ctx->pause = false;
     ctx->sdl.width = 1920;
     ctx->sdl.higth = 1080;
     ctx->ffmpeg.filename = "/Users/chengxiaodong/Desktop/doc/player/new_player/test.mp4";

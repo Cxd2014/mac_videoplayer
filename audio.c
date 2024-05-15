@@ -77,6 +77,11 @@ int decode_audio(void *arg) {
     swr_init(swr_ctx);
 
     while (false == ctx->quit) {
+        if (ctx->pause) {
+            SDL_Delay(10*SELLP_MS);
+            continue;
+        }
+
         AVPacket *packet = rqueue_read(ctx->apacket_queue);
         if (packet == NULL) {
             SDL_Delay(SELLP_MS);
@@ -87,10 +92,10 @@ int decode_audio(void *arg) {
         err = avcodec_send_packet(codec, packet);
         if (err < 0) {
             log_error("Failed to send packet to audio decoder");
-            return -1;
+            goto fail;
         }
 
-        while (err >= 0) {
+        while (err == 0) {
 
             AVFrame *frame = av_frame_alloc();
             err = avcodec_receive_frame(codec, frame);
@@ -98,7 +103,7 @@ int decode_audio(void *arg) {
                 break;
             } else if (err < 0) {
                 log_error("Failed to receive frame from audio decoder");
-                return -1;
+                 goto fail;
             }
 
             // 计算输出 采样数
@@ -112,7 +117,7 @@ int decode_audio(void *arg) {
             uint8_t *out_buf = av_malloc(buf_size);
             if (!out_buf) {
                 log_error("av_malloc failed");
-                return -1;
+                 goto fail;
             }
 
             // 执行格式转换
@@ -121,28 +126,35 @@ int decode_audio(void *arg) {
             // 将音频数据写入 SDL 音频缓冲区
             if (SDL_QueueAudio(ctx->sdl.audio_device, out_buf, buf_size) < 0) {
                 log_error("SDL_QueueAudio Failed");
-                return -1;
+                 goto fail;
             }
 
-            log_info("%d %d %d %d %d %d", frame->nb_samples, frame->ch_layout.nb_channels, frame->sample_rate, frame->format, out_samples, buf_size);
+            int queue_size = SDL_GetQueuedAudioSize(ctx->sdl.audio_device);
+
+            log_debug("%d %d %d %d %d %d %d", 
+                frame->nb_samples, frame->ch_layout.nb_channels, frame->sample_rate, frame->format, out_samples, buf_size, queue_size);
+
+            if (queue_size > (frame->sample_rate*buf_size)/frame->nb_samples) {
+                SDL_Delay(50*SELLP_MS);
+            }
 
             av_frame_unref(frame);
             av_frame_free(&frame);
             av_free(out_buf);
-
-            SDL_Delay(10);
         }
 
         pcount++;
         av_packet_unref(packet);
         av_packet_free(&packet);
     }
+
     log_info("decode audio frame count:%d", pcount);
 
 fail:
-    if (codec) {
-        avcodec_free_context(&codec);
-    }
+    if (codec) avcodec_free_context(&codec);
+    if (swr_ctx) swr_free(&swr_ctx);
+    SDL_CloseAudioDevice(ctx->sdl.audio_device);
+
     return err;
 }
 
