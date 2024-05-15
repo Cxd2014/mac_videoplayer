@@ -32,6 +32,7 @@ add_custom_target(
 add_executable(vplayer 
     main.c
     sdl_window.c
+    audio.c
     video.c
     rqueue.c
     log.c

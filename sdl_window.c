@@ -80,7 +80,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
                 frame->width, frame->height, frame->format, rect.w, rect.h,
                 AV_PIX_FMT_YUV420P, 0, NULL, NULL, NULL);
         if (ctx->ffmpeg.sub_convert_ctx == NULL) {
-            log_error("sws_getCachedContext error\n");
+            log_error("sws_getCachedContext error");
             return -3;
         }
     }
@@ -91,7 +91,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
     int linesize[4];
     int ret = av_image_alloc(pixels, linesize, rect.w, rect.h, AV_PIX_FMT_YUV420P, 1);
     if (ret < 0) {
-        log_error("av_image_alloc error %d %d\n", ret, frame->format);
+        log_error("av_image_alloc error %d %d", ret, frame->format);
         return -4;
     }
     
@@ -109,7 +109,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
     SDL_RenderCopy(ctx->sdl.render, ctx->sdl.texture, NULL, &rect); // 将视频纹理复制到渲染器
     SDL_RenderPresent(ctx->sdl.render); // 渲染画面
 
-    log_info("format %d duration %d %d*%d", frame->format, calc_duration(start), rect.w, rect.h);
+    log_debug("format %d duration %d %d*%d", frame->format, calc_duration(start), rect.w, rect.h);
     av_frame_unref(frame);
     av_frame_free(&frame);
     av_freep(&pixels[0]);
@@ -168,7 +168,7 @@ int sdl_event_loop(Context *ctx) {
         } else {
             count++;
             render_video_frame(ctx, frame);
-            SDL_Delay(SELLP_MS);
+            //SDL_Delay(SELLP_MS);
         }
     }
 

@@ -3,6 +3,7 @@
 #include "sdl_window.h"
 #include "log.h"
 #include "video.h"
+#include "audio.h"
 #include "context.h"
 
 #define QUEUE_SIZE (32)

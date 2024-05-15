@@ -28,6 +28,7 @@ typedef struct SDLInfo {
     SDL_Renderer *render;
     SDL_Texture *texture;
 
+    SDL_AudioDeviceID audio_device;
 } SDLInfo;
 
 typedef struct FFmpegInfo {

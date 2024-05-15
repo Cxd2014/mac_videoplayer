@@ -253,10 +253,10 @@ int decode_video(void *arg) {
                 ret = rqueue_write(ctx->vframe_queue, final_frame);
                 if (ret != 0) {
                     SDL_Delay(SELLP_MS);
-                    log_info("rqueue_write vframe_queue error:%d",ret);
+                    log_debug("rqueue_write vframe_queue error:%d",ret);
                 }
             } while (ret != 0 && ctx->quit == false);
-            log_info("decode video packet:%d frame:%d duration:%d", pcount, fcount, calc_duration(start));
+            log_debug("decode video packet:%d frame:%d duration:%d", pcount, fcount, calc_duration(start));
         }
     }
 
@@ -267,26 +267,4 @@ fail:
         avcodec_free_context(&codec);
     }
     return ret;
-}
-
-
-int decode_audio(void *arg) {
-    Context *ctx = arg;
-    int pcount = 0;
-
-    while (false == ctx->quit) {
-        AVPacket *packet = rqueue_read(ctx->apacket_queue);
-        if (packet == NULL) {
-            SDL_Delay(SELLP_MS);
-            log_debug("rqueue_read apacket_queue null");
-            continue;
-        }
-
-        pcount++;
-        av_packet_unref(packet);
-        av_packet_free(&packet);
-    }
-
-    log_info("decode audio frame count:%d", pcount);
-    return 0;
 }
