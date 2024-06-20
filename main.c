@@ -8,12 +8,12 @@
 
 #define QUEUE_SIZE (32)
 
-static int init_context(Context *ctx) {
+static int init_context(Context *ctx, char *filename) {
     ctx->quit = false;
     ctx->pause = false;
     ctx->sdl.width = 1920;
     ctx->sdl.higth = 1080;
-    ctx->ffmpeg.filename = "/Users/chengxiaodong/Desktop/doc/player/new_player/test.mp4";
+    ctx->ffmpeg.filename = filename;
 
     ctx->sdl.render = NULL;
     ctx->sdl.texture = NULL;
@@ -55,15 +55,20 @@ static int init_context(Context *ctx) {
     return 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     log_init("debug.log", LOG_INFO);
+
+    if (argc != 2) {
+        log_error("./vplayer filename");
+        return -2;
+    }
 
     Context *ctx = calloc(1, sizeof(Context));
     if (!ctx) {
         log_error("mallocz error");
         return -1;
     }
-    init_context(ctx);
+    init_context(ctx, argv[1]);
 
     ctx->read_tid = SDL_CreateThread(read_thread, "read_thread", ctx);
     ctx->video_tid = SDL_CreateThread(decode_video, "decode_video", ctx);

@@ -231,7 +231,8 @@ int decode_video(void *arg) {
                 log_error("Error while decoding:%d\n", ret);
                 goto fail;
             }
-
+            
+            log_info("Frame %c pts %d dts %d", av_get_picture_type_char(frame->pict_type), frame->pts, frame->pkt_dts);
             AVFrame *final_frame = NULL;
             if (frame->format == hw_pix_fmt) {
                 /* retrieve data from GPU to CPU */

@@ -178,7 +178,7 @@ int sdl_event_loop(Context *ctx) {
             } else {
                 count++;
                 render_video_frame(ctx, frame);
-                SDL_Delay(SELLP_MS);
+                SDL_Delay(SELLP_MS*2);
             }
         }
     }
