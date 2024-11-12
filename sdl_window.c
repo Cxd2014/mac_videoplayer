@@ -183,7 +183,7 @@ int sdl_event_loop(Context *ctx) {
                 int64_t audio_time = get_audio_playtime(ctx);
                 int64_t video_time = frame->pts*1000*base.num/base.den;
                 int diff_time = audio_time - video_time;
-                int show_time = frame->pts - ctx->video_pts;
+                int show_time = (frame->pts - ctx->video_pts)*1000*base.num/base.den;
 
                 int render_time = render_video_frame(ctx, frame);
 
