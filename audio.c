@@ -154,7 +154,7 @@ int decode_audio(void *arg) {
             ctx->audio_sample_rate = frame->sample_rate;
             ctx->audio_buff_size = buf_size;
 
-            // nb_samples 给个frame包含的采样数
+            // nb_samples 这个frame包含的采样数
             // sample_rate 音频每秒钟的采样数
             log_debug("%d %d %d %d %d %d %d pts %d dts %d", 
                 frame->nb_samples, frame->ch_layout.nb_channels, frame->sample_rate, frame->format, out_samples, buf_size, queue_size, 
