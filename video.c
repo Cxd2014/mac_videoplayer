@@ -194,7 +194,7 @@ int decode_video(void *arg) {
     ctx->ffmpeg.video_codec = codec;
     
     while (false == ctx->quit) {
-        clock_t start = clock();
+        int64_t start = get_now_millisecond();
         AVPacket *packet = rqueue_read(ctx->vpacket_queue);
         if (packet == NULL) {
             SDL_Delay(SELLP_MS);
@@ -232,7 +232,7 @@ int decode_video(void *arg) {
                 goto fail;
             }
             
-            log_info("Frame %c pts %d dts %d", av_get_picture_type_char(frame->pict_type), frame->pts, frame->pkt_dts);
+            log_debug("Frame %c pts %d dts %d", av_get_picture_type_char(frame->pict_type), frame->pts, frame->pkt_dts);
             AVFrame *final_frame = NULL;
             if (frame->format == hw_pix_fmt) {
                 /* retrieve data from GPU to CPU */
@@ -241,6 +241,7 @@ int decode_video(void *arg) {
                     goto fail;
                 }
                 final_frame = sw_frame;
+                final_frame->pts = frame->pts;
                 av_frame_unref(frame);
                 av_frame_free(&frame);
             } else {

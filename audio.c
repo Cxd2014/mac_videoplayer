@@ -6,24 +6,42 @@ int init_audio(void *arg) {
     Context *ctx = arg;
 
     // 设置音频参数
-    SDL_AudioSpec audio_spec;
-    audio_spec.freq = ctx->ffmpeg.audio_codec->sample_rate;
-    audio_spec.channels = ctx->ffmpeg.audio_codec->ch_layout.nb_channels;
-    audio_spec.format = AUDIO_S16SYS;
-    audio_spec.samples = 1024;
-    audio_spec.callback = NULL;
-    audio_spec.userdata = NULL;
+    SDL_AudioSpec wanted_spec, device_spec;
+    wanted_spec.freq = ctx->ffmpeg.audio_codec->sample_rate;
+    wanted_spec.channels = ctx->ffmpeg.audio_codec->ch_layout.nb_channels;
+    wanted_spec.format = AUDIO_S16SYS;
+    wanted_spec.samples = 1024;
+    wanted_spec.callback = NULL;
+    wanted_spec.userdata = NULL;
 
     // 打开音频设备
-    ctx->sdl.audio_device = SDL_OpenAudioDevice(NULL, 0, &audio_spec, NULL, 0);
+    ctx->sdl.audio_device = SDL_OpenAudioDevice(NULL, 0, &wanted_spec, &device_spec, 0);
     if (ctx->sdl.audio_device == 0) {
-        fprintf(stderr, "Failed to open audio device");
+        log_error("Failed to open audio device:%s", SDL_GetError());
         return -1;
     }
 
+    log_info("device freq:%d channels:%d format:%d samples:%d hw_bufsize:%d time_base:%f", 
+        device_spec.freq, device_spec.channels, device_spec.format, device_spec.samples, device_spec.size, 
+        av_q2d(ctx->ffmpeg.format->streams[ctx->audio_index]->time_base));
+
     // 开始播放音频
     SDL_PauseAudioDevice(ctx->sdl.audio_device, 0);
+    log_info("begin play audio");
     return 0;
+}
+
+int64_t get_audio_playtime(Context *ctx) {
+    AVRational base = ctx->ffmpeg.format->streams[ctx->audio_index]->time_base;
+    int queue_size = SDL_GetQueuedAudioSize(ctx->sdl.audio_device);
+
+    // 计算缓存的音频可以播放的时间(单位毫秒)，需要减去当前帧的时间
+    int64_t buf_time = (int64_t)(queue_size - ctx->audio_buff_size)*ctx->audio_nb_samples*1000/(ctx->audio_buff_size*ctx->audio_sample_rate);
+
+    //计算当前音频的播放时间(单位毫秒)，当前帧的pts乘以时间基得到当前帧的播放时间，然后减去缓存的时间
+    int64_t play_time = ((ctx->audio_pts*1000*base.num)/base.den) - buf_time;
+    log_debug("playtime:%ld buf_time:%ld  pts:%ld", play_time, buf_time, ctx->audio_pts);
+    return play_time;
 }
 
 int decode_audio(void *arg) {
@@ -131,9 +149,18 @@ int decode_audio(void *arg) {
 
             int queue_size = SDL_GetQueuedAudioSize(ctx->sdl.audio_device);
 
-            log_debug("%d %d %d %d %d %d %d", 
-                frame->nb_samples, frame->ch_layout.nb_channels, frame->sample_rate, frame->format, out_samples, buf_size, queue_size);
+            ctx->audio_pts = frame->pts;
+            ctx->audio_nb_samples = frame->nb_samples;
+            ctx->audio_sample_rate = frame->sample_rate;
+            ctx->audio_buff_size = buf_size;
 
+            // nb_samples 给个frame包含的采样数
+            // sample_rate 音频每秒钟的采样数
+            log_debug("%d %d %d %d %d %d %d pts %d dts %d", 
+                frame->nb_samples, frame->ch_layout.nb_channels, frame->sample_rate, frame->format, out_samples, buf_size, queue_size, 
+                frame->pts, frame->pkt_dts);
+
+            // 缓存一秒钟的音频数据
             if (queue_size > (frame->sample_rate*buf_size)/frame->nb_samples) {
                 SDL_Delay(50*SELLP_MS);
             }

@@ -52,7 +52,14 @@ typedef struct Context {
     bool pause;
 
     int video_index;
+    int64_t video_pts;
+
     int audio_index;
+    int64_t audio_pts;
+    int audio_nb_samples;
+    int audio_sample_rate;
+    int audio_buff_size;
+
 
     rqueue_t *vpacket_queue;
     rqueue_t *apacket_queue;

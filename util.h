@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdint.h>
 
-uint32_t calc_duration(clock_t start);
+int64_t calc_duration(int64_t start);
+int64_t get_now_millisecond();
 
 #endif

@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "log.h"
+#include "util.h"
 
 static const char *log_levels[] = {
     "",
@@ -14,11 +15,6 @@ static const char *log_levels[] = {
     "debug",
 };
 
-int64_t get_now_millisecond() {
-    struct timespec current_time;
-    clock_gettime(CLOCK_REALTIME, &current_time);
-    return (int64_t)current_time.tv_sec * 1000 + current_time.tv_nsec / 1000000;
-}
 
 static int log_fd;
 static int log_level;

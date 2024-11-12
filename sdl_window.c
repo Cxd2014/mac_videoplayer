@@ -1,6 +1,7 @@
 #include "sdl_window.h"
 #include "log.h"
 #include "util.h"
+#include "audio.h"
 
 void get_window_size(Context *ctx) {
     SDL_GL_GetDrawableSize(ctx->sdl.window, &(ctx->sdl.width), &(ctx->sdl.higth));
@@ -57,7 +58,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
         log_error("frame is null error");
         return -1;
     }
-    clock_t start = clock();
+    int64_t start = get_now_millisecond();
 
     SDL_Rect rect;
     rect.x = 0;
@@ -109,11 +110,11 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
     SDL_RenderCopy(ctx->sdl.render, ctx->sdl.texture, NULL, &rect); // 将视频纹理复制到渲染器
     SDL_RenderPresent(ctx->sdl.render); // 渲染画面
 
-    log_debug("format %d duration %d %d*%d", frame->format, calc_duration(start), rect.w, rect.h);
-    av_frame_unref(frame);
-    av_frame_free(&frame);
     av_freep(&pixels[0]);
-    return 0;
+
+    int cost_time = calc_duration(start);
+    log_debug("format %d duration %d %d*%d", frame->format, cost_time, rect.w, rect.h);
+    return cost_time;
 }
 
 int sdl_event_loop(Context *ctx) {
@@ -177,8 +178,25 @@ int sdl_event_loop(Context *ctx) {
                 log_debug("rqueue_read vframe_queue null");
             } else {
                 count++;
-                render_video_frame(ctx, frame);
-                SDL_Delay(SELLP_MS*2);
+                AVRational base = ctx->ffmpeg.format->streams[ctx->video_index]->time_base;
+
+                int64_t audio_time = get_audio_playtime(ctx);
+                int64_t video_time = frame->pts*1000*base.num/base.den;
+                int diff_time = audio_time - video_time;
+                int show_time = frame->pts - ctx->video_pts;
+
+                int render_time = render_video_frame(ctx, frame);
+
+                int sleep_time = show_time - render_time - diff_time;
+                log_info("audio_time:%ld video_time:%ld render_time:%d diff_time:%d show_time:%d sleep_time:%d", 
+                    audio_time, video_time, render_time, diff_time, show_time, sleep_time);
+
+                if (sleep_time > 0)
+                    SDL_Delay(sleep_time);
+                    
+                ctx->video_pts = frame->pts;
+                av_frame_unref(frame);
+                av_frame_free(&frame);
             }
         }
     }
