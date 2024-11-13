@@ -21,18 +21,18 @@
 #define SELLP_MS (10)
 
 typedef struct SDLInfo {
-    int width;
-    int higth;
-
     SDL_Window *window;
     SDL_Renderer *render;
     SDL_Texture *texture;
-
+    SDL_Rect rect;
+    
     SDL_AudioDeviceID audio_device;
 } SDLInfo;
 
 typedef struct FFmpegInfo {
     char *filename;
+    int width;
+    int height;
 
     AVFormatContext *format;
 

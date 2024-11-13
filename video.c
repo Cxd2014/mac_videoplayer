@@ -39,6 +39,9 @@ int init_ffmpeg(Context *ctx) {
     ctx->audio_index = av_find_best_stream(format, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
 
     ctx->ffmpeg.format = format;
+    ctx->ffmpeg.width = format->streams[ctx->video_index]->codecpar->width;
+    ctx->ffmpeg.height = format->streams[ctx->video_index]->codecpar->height;
+    log_info("video pix %dx%d", ctx->ffmpeg.width, ctx->ffmpeg.height);
     
     return 0;
 

@@ -3,9 +3,30 @@
 #include "util.h"
 #include "audio.h"
 
-void get_window_size(Context *ctx) {
-    SDL_GL_GetDrawableSize(ctx->sdl.window, &(ctx->sdl.width), &(ctx->sdl.higth));
-    log_info("width:%d hight:%d", ctx->sdl.width, ctx->sdl.higth);
+static void get_render_rect(Context *ctx) {
+
+    int width = 0, height = 0;
+    SDL_GL_GetDrawableSize(ctx->sdl.window, &width, &height);
+
+    double video_scale = ctx->ffmpeg.width/(double)ctx->ffmpeg.height;
+    double window_scale = width/(double)height;
+
+    if (video_scale > window_scale) {
+        ctx->sdl.rect.w = width;
+        ctx->sdl.rect.h = (width*ctx->ffmpeg.height)/ctx->ffmpeg.width;
+        ctx->sdl.rect.x = 0;
+        ctx->sdl.rect.y = (height - ctx->sdl.rect.h)/2;
+        ctx->sdl.rect.y = ctx->sdl.rect.y - (ctx->sdl.rect.y%2);
+    } else {
+        ctx->sdl.rect.w = (height*ctx->ffmpeg.width)/ctx->ffmpeg.height;
+        ctx->sdl.rect.h = height;
+        ctx->sdl.rect.x = (width - ctx->sdl.rect.w)/2;
+        ctx->sdl.rect.y = 0;
+        ctx->sdl.rect.x = ctx->sdl.rect.x - (ctx->sdl.rect.x%2);
+    }
+
+    log_info("width:%d hight:%d x:%d y:%d w:%d h:%d", width, height,
+        ctx->sdl.rect.x, ctx->sdl.rect.y, ctx->sdl.rect.w, ctx->sdl.rect.h);
 }
 
 int create_window(Context *ctx) {
@@ -27,28 +48,28 @@ int create_window(Context *ctx) {
 
         log_info("Display %d:", i);
         log_info("  Resolution: %dx%d Refresh rate: %d Hz", display_mode.w, display_mode.h, display_mode.refresh_rate);
-        log_info("  Diagonal DPI: %.2f Horizontal DPI: %.2f Vertical DPI: %.2f", ddpi,hdpi,vdpi);
+        log_info("  Diagonal DPI: %.2f Horizontal DPI: %.2f Vertical DPI: %.2f", ddpi, hdpi, vdpi);
     }
 
     // 创建窗口
     ctx->sdl.window = SDL_CreateWindow(
             "vplayer",
             SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            ctx->sdl.width, ctx->sdl.higth,
+            1920, 1080,
             SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE| SDL_WINDOW_ALLOW_HIGHDPI);
     if (ctx->sdl.window == NULL) {
         log_error("could not create window: %s", SDL_GetError());
         return -2;
     }
-    get_window_size(ctx);
 
     // 创建渲染器
-    ctx->sdl.render = SDL_CreateRenderer(ctx->sdl.window, -1, 0);
+    ctx->sdl.render = SDL_CreateRenderer(ctx->sdl.window, -1, SDL_RENDERER_ACCELERATED);
     if (ctx->sdl.render == NULL) {
         log_error("SDL_CreateRenderer error: %s\n", SDL_GetError());
         return -3;
     }
 
+    get_render_rect(ctx);
     return 0;
 }
 
@@ -59,17 +80,12 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
         return -1;
     }
     int64_t start = get_now_millisecond();
-
-    SDL_Rect rect;
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = ctx->sdl.width;
-    rect.h = ctx->sdl.higth;
+    SDL_Rect *rect = &(ctx->sdl.rect);
 
     if (ctx->sdl.texture == NULL) {
         // 窗口大小调整之后需要重新创建纹理
         ctx->sdl.texture = SDL_CreateTexture(ctx->sdl.render, SDL_PIXELFORMAT_IYUV,
-                        SDL_TEXTUREACCESS_STREAMING, rect.w, rect.h);
+                        SDL_TEXTUREACCESS_STREAMING, rect->w+rect->x, rect->h+rect->y);
         if (ctx->sdl.texture == NULL) {
             log_error("SDL_CreateTexture error: %s", SDL_GetError());
             return -2;
@@ -78,7 +94,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
 
     if (ctx->ffmpeg.sub_convert_ctx == NULL) {
         ctx->ffmpeg.sub_convert_ctx = sws_getCachedContext(ctx->ffmpeg.sub_convert_ctx,
-                frame->width, frame->height, frame->format, rect.w, rect.h,
+                frame->width, frame->height, frame->format, rect->w, rect->h,
                 AV_PIX_FMT_YUV420P, 0, NULL, NULL, NULL);
         if (ctx->ffmpeg.sub_convert_ctx == NULL) {
             log_error("sws_getCachedContext error");
@@ -90,7 +106,7 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
     // 分配新视频帧的内存空间
     uint8_t *pixels[4] = {NULL};
     int linesize[4];
-    int ret = av_image_alloc(pixels, linesize, rect.w, rect.h, AV_PIX_FMT_YUV420P, 1);
+    int ret = av_image_alloc(pixels, linesize, rect->w, rect->h, AV_PIX_FMT_YUV420P, 1);
     if (ret < 0) {
         log_error("av_image_alloc error %d %d", ret, frame->format);
         return -4;
@@ -100,21 +116,20 @@ static int render_video_frame(Context *ctx, AVFrame *frame) {
     sws_scale(ctx->ffmpeg.sub_convert_ctx, (const uint8_t * const *)frame->data, frame->linesize,
                             0, frame->height, pixels, linesize);
 
+    //log_info("format %d duration %d %d*%d", frame->format, calc_duration(start), rect->w, rect->h);
     //上传YUV数据到Texture
-    SDL_UpdateYUVTexture(ctx->sdl.texture, &rect,
+    SDL_UpdateYUVTexture(ctx->sdl.texture, rect,
                          pixels[0], linesize[0],
                          pixels[1], linesize[1],
                          pixels[2], linesize[2]);
 
     SDL_RenderClear(ctx->sdl.render); // 先清空渲染器
-    SDL_RenderCopy(ctx->sdl.render, ctx->sdl.texture, NULL, &rect); // 将视频纹理复制到渲染器
+    SDL_RenderCopy(ctx->sdl.render, ctx->sdl.texture, rect, rect); // 将视频纹理复制到渲染器
     SDL_RenderPresent(ctx->sdl.render); // 渲染画面
 
     av_freep(&pixels[0]);
 
-    int cost_time = calc_duration(start);
-    log_debug("format %d duration %d %d*%d", frame->format, cost_time, rect.w, rect.h);
-    return cost_time;
+    return calc_duration(start);
 }
 
 int sdl_event_loop(Context *ctx) {
@@ -149,7 +164,7 @@ int sdl_event_loop(Context *ctx) {
             case SDL_WINDOWEVENT:
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_SIZE_CHANGED:
-                    get_window_size(ctx);
+
                     if (ctx->sdl.texture) {
                         SDL_DestroyTexture(ctx->sdl.texture);
                         ctx->sdl.texture = NULL;
@@ -159,6 +174,7 @@ int sdl_event_loop(Context *ctx) {
                         sws_freeContext(ctx->ffmpeg.sub_convert_ctx);
                         ctx->ffmpeg.sub_convert_ctx = NULL;
                     }
+                    get_render_rect(ctx);
                     break;
                 }
                 break;
@@ -188,7 +204,7 @@ int sdl_event_loop(Context *ctx) {
                 int render_time = render_video_frame(ctx, frame);
 
                 int sleep_time = show_time - render_time - diff_time;
-                log_info("audio_time:%ld video_time:%ld render_time:%d diff_time:%d show_time:%d sleep_time:%d", 
+                log_debug("audio_time:%ld video_time:%ld render_time:%d diff_time:%d show_time:%d sleep_time:%d", 
                     audio_time, video_time, render_time, diff_time, show_time, sleep_time);
 
                 if (sleep_time > 0)

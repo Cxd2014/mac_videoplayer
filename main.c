@@ -11,8 +11,6 @@
 static int init_context(Context *ctx, char *filename) {
     ctx->quit = false;
     ctx->pause = false;
-    ctx->sdl.width = 1920;
-    ctx->sdl.higth = 1080;
     ctx->ffmpeg.filename = filename;
 
     ctx->sdl.render = NULL;
@@ -42,14 +40,14 @@ static int init_context(Context *ctx, char *filename) {
         return -4;
     }
 
-    if (create_window(ctx) < 0) {
-        log_error("create_window error");
-        return -5;
-    }
-
     if (init_ffmpeg(ctx) < 0) {
         log_error("init_ffmpeg error");
         return -6;
+    }
+
+    if (create_window(ctx) < 0) {
+        log_error("create_window error");
+        return -5;
     }
 
     return 0;
