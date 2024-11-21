@@ -178,14 +178,14 @@ int sdl_event_loop(Context *ctx) {
                     ctx->pause = true;
                    
                     AVRational base = ctx->ffmpeg.format->streams[ctx->video_index]->time_base;
-                    int64_t vseek_point = (pot.x * ctx->ffmpeg.format->duration * base.den) / (int64_t)(width * AV_TIME_BASE * base.num);
+                    int64_t vseek_point = ((int64_t)(pot.x * base.den) / (int64_t)(width * base.num)) * (ctx->ffmpeg.format->duration / AV_TIME_BASE);
                     if (av_seek_frame(ctx->ffmpeg.format, ctx->video_index, vseek_point, AVSEEK_FLAG_BACKWARD) < 0) {
                         log_error("av_seek_frame video error");
                     }
 
 
                     base = ctx->ffmpeg.format->streams[ctx->audio_index]->time_base;
-                    int64_t aseek_point = (pot.x * ctx->ffmpeg.format->duration * base.den) / (int64_t)(width * AV_TIME_BASE * base.num);
+                    int64_t aseek_point = ((int64_t)(pot.x * base.den) / (int64_t)(width * base.num)) * (ctx->ffmpeg.format->duration / AV_TIME_BASE);
                     if (av_seek_frame(ctx->ffmpeg.format, ctx->audio_index, aseek_point, AVSEEK_FLAG_BACKWARD) < 0) {
                         log_error("av_seek_frame audio error");
                     }
