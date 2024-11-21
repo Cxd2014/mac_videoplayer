@@ -48,7 +48,5 @@ void clean_all_queue(Context *ctx) {
     int ap = clean_packet_queue(ctx->apacket_queue);
     int vp = clean_packet_queue(ctx->vpacket_queue);
 
-    SDL_ClearQueuedAudio(ctx->sdl.audio_device);
-
     log_info("af:%d vf:%d ap:%d vp:%d", af, vf, ap, vp);
 }

@@ -190,6 +190,8 @@ int sdl_event_loop(Context *ctx) {
                         log_error("av_seek_frame audio error");
                     }
 
+                    ctx->audio_pts = aseek_point;
+
                     log_info("x:%d y:%d aseek_point:%ld vseek_point:%ld duration:%ld", 
                         pot.x, pot.y, aseek_point, vseek_point, ctx->ffmpeg.format->duration);
 

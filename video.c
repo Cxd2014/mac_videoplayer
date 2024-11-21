@@ -214,12 +214,10 @@ int decode_video(void *arg) {
         // 发送给解码器
         ret = avcodec_send_packet(codec, packet);
         if (ret < 0) {
-            log_error("avcodec_send_packet error:%d", ret);
-            goto fail;
-        } else {
-            av_packet_unref(packet);
-            av_packet_free(&packet);
+            log_error("avcodec_send_packet error:%d packet:%x", ret, packet);
         }
+        av_packet_unref(packet);
+        av_packet_free(&packet);
 
         while (false == ctx->quit) {
             // 从解码器中循环读取帧数据,直到读取失败

@@ -109,15 +109,17 @@ int decode_audio(void *arg) {
 
         err = avcodec_send_packet(codec, packet);
         if (err < 0) {
-            log_error("Failed to send packet to audio decoder");
-            goto fail;
+            log_error("avcodec_send_packet error:%d packet:%x", err, packet);
         }
+        av_packet_unref(packet);
+        av_packet_free(&packet);
 
         while (err == 0) {
 
             AVFrame *frame = av_frame_alloc();
             err = avcodec_receive_frame(codec, frame);
             if (err == AVERROR(EAGAIN) || err == AVERROR_EOF) {
+                av_frame_free(&frame);
                 break;
             } else if (err < 0) {
                 log_error("Failed to receive frame from audio decoder");
@@ -171,8 +173,6 @@ int decode_audio(void *arg) {
         }
 
         pcount++;
-        av_packet_unref(packet);
-        av_packet_free(&packet);
     }
 
     log_info("decode audio frame count:%d", pcount);
