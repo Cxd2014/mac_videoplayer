@@ -159,6 +159,43 @@ int sdl_event_loop(Context *ctx) {
                 }
                 break;
             case SDL_MOUSEBUTTONDOWN: {
+
+                int width = 0, height = 0;
+                SDL_GetWindowSize(ctx->sdl.window, &width, &height);
+
+                SDL_Rect rect;
+                rect.x = 0;
+                rect.y = height-50;
+                rect.w = width;
+                rect.h = 50;
+
+                SDL_Point pot;
+                pot.x = event.motion.x;
+                pot.y = event.motion.y;
+                log_info("x:%d y:%d rect x y w h %d:%d:%d:%d", pot.x, pot.y, rect.x, rect.y, rect.w, rect.h);
+
+                if (rect.y > 0 && SDL_PointInRect(&pot, &rect) && ctx->pause == false) {
+                    ctx->pause = true;
+                   
+                    AVRational base = ctx->ffmpeg.format->streams[ctx->video_index]->time_base;
+                    int64_t vseek_point = (pot.x * ctx->ffmpeg.format->duration * base.den) / (int64_t)(width * AV_TIME_BASE * base.num);
+                    if (av_seek_frame(ctx->ffmpeg.format, ctx->video_index, vseek_point, AVSEEK_FLAG_BACKWARD) < 0) {
+                        log_error("av_seek_frame video error");
+                    }
+
+
+                    base = ctx->ffmpeg.format->streams[ctx->audio_index]->time_base;
+                    int64_t aseek_point = (pot.x * ctx->ffmpeg.format->duration * base.den) / (int64_t)(width * AV_TIME_BASE * base.num);
+                    if (av_seek_frame(ctx->ffmpeg.format, ctx->audio_index, aseek_point, AVSEEK_FLAG_BACKWARD) < 0) {
+                        log_error("av_seek_frame audio error");
+                    }
+
+                    log_info("x:%d y:%d aseek_point:%ld vseek_point:%ld duration:%ld", 
+                        pot.x, pot.y, aseek_point, vseek_point, ctx->ffmpeg.format->duration);
+
+                    clean_all_queue(ctx);
+                    ctx->pause = false;
+                }
                 break;
             }
             case SDL_WINDOWEVENT:
@@ -204,10 +241,10 @@ int sdl_event_loop(Context *ctx) {
                 int render_time = render_video_frame(ctx, frame);
 
                 int sleep_time = show_time - render_time - diff_time;
-                log_debug("audio_time:%ld video_time:%ld render_time:%d diff_time:%d show_time:%d sleep_time:%d", 
+                log_info("audio_time:%ld video_time:%ld render_time:%d diff_time:%d show_time:%d sleep_time:%d", 
                     audio_time, video_time, render_time, diff_time, show_time, sleep_time);
 
-                if (sleep_time > 0)
+                if (sleep_time > 0 && sleep_time < 2000)
                     SDL_Delay(sleep_time);
                     
                 ctx->video_pts = frame->pts;

@@ -6,7 +6,7 @@
 #include "audio.h"
 #include "context.h"
 
-#define QUEUE_SIZE (32)
+#define QUEUE_SIZE (12)
 
 static int init_context(Context *ctx, char *filename) {
     ctx->quit = false;

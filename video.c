@@ -63,6 +63,11 @@ int read_thread(void *arg) {
 
     log_debug("read_thread...");
     while(false == ctx->quit) {
+        if (ctx->pause) {
+            SDL_Delay(10*SELLP_MS);
+            continue;
+        }
+
         AVPacket *packet = av_packet_alloc();
         if (!packet) {
             log_error("av_packet_alloc error");
